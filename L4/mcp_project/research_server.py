@@ -1,14 +1,36 @@
+
 import arxiv
 import json
 import os
 from typing import List
 from mcp.server.fastmcp import FastMCP
+from starlette.applications import Starlette
+from starlette.routing import Mount
+from starlette.middleware.cors import CORSMiddleware  # <--- Add this
+import uvicorn
 
 
 PAPER_DIR = "papers"
 
 # Initialize FastMCP server
-mcp = FastMCP("research")
+mcp = FastMCP("research",
+              host="0.0.0.0",
+              port=8008)
+
+# Create the Starlette app
+app = Starlette(
+    routes=[
+        Mount("/", app=mcp.sse_app()),
+    ]
+)
+
+# ⚠️ Add this block to fix the "SSE Error"
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows the Inspector to connect
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @mcp.tool()
@@ -98,6 +120,8 @@ def extract_info(paper_id: str) -> str:
     
     return f"There's no saved information related to paper {paper_id}."
 
+
 if __name__ == "__main__":
-    mcp.run(transport='stdio')
+    # mcp.run(transport='sse')
+    uvicorn.run(app, host="0.0.0.0", port=8008)
 
